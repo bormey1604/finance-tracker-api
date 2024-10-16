@@ -6,8 +6,10 @@ import com.techgirl.finance_tracker_api.model.MyUser;
 import com.techgirl.finance_tracker_api.model.Transaction;
 import com.techgirl.finance_tracker_api.model.TransactionType;
 import com.techgirl.finance_tracker_api.model.response.ApiResponse;
+import com.techgirl.finance_tracker_api.service.MailService;
 import com.techgirl.finance_tracker_api.service.TransactionService;
 import com.techgirl.finance_tracker_api.utility.AuthUtil;
+import jakarta.mail.MessagingException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,6 +19,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 @RestController
@@ -28,6 +31,9 @@ public class TransactionController {
 
     @Autowired
     private AuthUtil authUtil;
+
+    @Autowired
+    private MailService mailService;
 
     @PostMapping("/transaction")
     public ResponseEntity<ApiResponse> createTransaction(@RequestBody Transaction transaction, HttpServletRequest request) {
@@ -78,7 +84,7 @@ public class TransactionController {
                     .body(new ApiResponse("401", "Unauthorized: User not found!"));
         }
 
-        List<TransactionDto> transactions = transactionService.getTransactionByType(type);
+        List<TransactionDto> transactions = transactionService.getTransactionByType(type,user);
         Map<String, Object> map = Map.of("transactions", transactions);
 
         return ResponseEntity.ok(new ApiResponse("200", "Successfully retrieved transactions!",map));
@@ -90,11 +96,18 @@ public class TransactionController {
 
         if (user != null) {
             try {
-                transactionService.exportTransactionsToPdf(response,type );
-                return ResponseEntity.ok().build();
+                byte[] pdfData = transactionService.exportTransactionsToPdf(type, user);
+                String receiver = user.getEmail();
+                mailService.sendEmailWithAttachment(receiver,"Transactions Report", "Please find your attached file here: ", String.valueOf(type).toLowerCase() ,pdfData);
+
+                return ResponseEntity.status(HttpStatus.OK)
+                        .body(new ApiResponse("200", "Transactions report has sent to your email." ));
+
             } catch (IOException | DocumentException e) {
                 return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                         .body(new ApiResponse("500", "Error generating PDF: " + e.getMessage()));
+            } catch (MessagingException e) {
+                throw new RuntimeException(e);
             }
         }
 

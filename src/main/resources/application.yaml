@@ -8,17 +8,17 @@ spring:
       ddl-auto: update
     show-sql: true
 
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: bormeytechgirl@gmail.com
+    password: ${GMAIL_APP_PASSWORD}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
 jwt:
   secret-key: 8B0D0561774A6429D4FFDA3EEF87A22F599909F4308E3752B6F9A4DBC96FA661
-
-#  mail:
-#    host: smtp.gmail.com
-#    port: 587
-#    username: bormeytechgirl@gmail.com
-#    password: fissvfaofyiwimuy
-#    properties:
-#      mail:
-#        smtp:
-#          auth: true
-#          starttls:
-#            enable: true

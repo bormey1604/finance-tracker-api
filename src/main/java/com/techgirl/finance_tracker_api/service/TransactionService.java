@@ -1,21 +1,28 @@
 package com.techgirl.finance_tracker_api.service;
 
-import com.itextpdf.text.*;
+
+import com.itextpdf.text.Document;
+import com.itextpdf.text.DocumentException;
+import com.itextpdf.text.Font;
+import com.itextpdf.text.FontFactory;
+import com.itextpdf.text.Paragraph;
 import com.itextpdf.text.pdf.PdfPCell;
 import com.itextpdf.text.pdf.PdfPTable;
 import com.itextpdf.text.pdf.PdfWriter;
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.util.List;
+import com.itextpdf.text.*;
+
 import com.techgirl.finance_tracker_api.dto.TransactionDto;
 import com.techgirl.finance_tracker_api.model.MyUser;
 import com.techgirl.finance_tracker_api.model.Transaction;
 import com.techgirl.finance_tracker_api.model.TransactionType;
 import com.techgirl.finance_tracker_api.repository.TransactionRepository;
-import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.io.IOException;
-import java.util.*;
-import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
@@ -59,8 +66,8 @@ public class TransactionService {
         return transactionDto;
     }
 
-    public List<TransactionDto> getTransactionByType(String transactionType) {
-        List<Transaction> transactions = transactionRepository.findByType(TransactionType.valueOf(transactionType));
+    public List<TransactionDto> getTransactionByType(String transactionType, MyUser user) {
+        List<Transaction> transactions = transactionRepository.findByTypeAndUser(TransactionType.valueOf(transactionType), user);
 
         return transactions.stream().map(transaction -> {
 
@@ -76,22 +83,17 @@ public class TransactionService {
         }).collect(Collectors.toList());
     }
 
-    public void exportTransactionsToPdf(HttpServletResponse response, TransactionType type) throws IOException, DocumentException {
 
-        response.setContentType("application/pdf");
-        response.setHeader("Content-Disposition", "attachment; filename="+String.valueOf(type).toLowerCase(Locale.ROOT)+"_transactions.pdf");
-
-        List<TransactionDto> transactions = getTransactionByType(String.valueOf(type));
-
+    public byte[] exportTransactionsToPdf(TransactionType type, MyUser user) throws IOException, DocumentException {
+        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
 
         Document document = new Document();
-        PdfWriter.getInstance(document, response.getOutputStream());
+        PdfWriter.getInstance(document, byteArrayOutputStream);
         document.open();
-
 
         Font fontTitle = FontFactory.getFont(FontFactory.HELVETICA_BOLD);
         fontTitle.setSize(18);
-        Paragraph title = new Paragraph(String.valueOf(type).substring(0, 1).toUpperCase() + String.valueOf(type).substring(1).toLowerCase()+" Transactions Report", fontTitle);
+        Paragraph title = new Paragraph(String.valueOf(type).substring(0, 1).toUpperCase() + String.valueOf(type).substring(1).toLowerCase() + " Transactions Report", fontTitle);
         title.setAlignment(Paragraph.ALIGN_CENTER);
         document.add(title);
         document.add(Chunk.NEWLINE);
@@ -110,6 +112,7 @@ public class TransactionService {
         table.addCell(new PdfPCell(new Phrase("Date", fontHeader)));
 
         // Add transaction data to the table
+        List<TransactionDto> transactions = getTransactionByType(String.valueOf(type), user);
         for (TransactionDto transaction : transactions) {
             table.addCell(String.valueOf(transaction.getId()));
             table.addCell(String.valueOf(transaction.getAmount()));
@@ -122,6 +125,9 @@ public class TransactionService {
 
         // Close the document
         document.close();
+
+        // Return the byte array for the PDF
+        return byteArrayOutputStream.toByteArray();
     }
 
 
